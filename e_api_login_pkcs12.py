@@ -5,7 +5,7 @@
 # 2022.10.20 reviced,   yo.
 # 2025.07.27 reviced,   yo.
 # 2026.05.16 reviced,   yo.
-# 2026.05.30 reviced,   yo
+# 2026.05.30 reviced,   yo.
 #
 # 立花証券ｅ支店ＡＰＩ利用のサンプルコード
 #
@@ -14,51 +14,7 @@
 # API v4r9
 #
 # 機能: ログインして、仮想URL（1日券）を取得します。
-#
-# 利用方法: 
-# 次の2つのファイルを準備してください。
-# 1）接続情報ファイル: "./e_api/file_url_info.txt"に口座情報を記入します。
-#   設定情報は、API接続先、表示形式指定です。
-#   ユーザーID、第１暗証番号、第2暗証番号は、PKIログインでは使用しないので設定不要です。
-#   デモ環境への接続のサンプル
-#   {
-#	    "sUrl":"https://demo-kabuka.e-shiten.jp/e_api_v4r9/",
-#	    "sJsonOfmt":"5"
-#   }
-# 
-# 2）第2パスワード保存ファイル：./e_api/.pki/passwd2.txt
-# ログインでは使いません。注文、訂正、取り消しで使います。
-# 第2パスワードを平文でそのまま保存します。改行や制御文字を入れないでください。 
-# 権限設定は、600です。
-# 
-# ファイルの準備ができたら、githubの同じレポジトリ内にある
-# setup_manyual.html
-# をダウンロードし、ブラウザーで開き、設定を進めてください。
-# 
-# 事前準備は以上です。
-# 
-# 
-# その他の説明
-# 取得した仮想urlは、fname_login_response（ = "e_api_login_response.txt"）で
-# 定義したファイルに保存します。
-#
-# p_noは、fname_info_p_no（ = "e_api_info_p_no.txt"）で定義したファイルに
-# 保存します。
-#
-# == ご注意: ========================================
-#   本番環境にに接続した場合、実際に市場に注文が出ます。
-#   市場で約定した場合取り消せません。
-# ==================================================
-#
-#
-
-"""
-立花証券e支店API - API接続・自動実行メインプログラム（再起動・エラー耐性強化版）
-
-機能: 環境変数からセキュアに復号鍵を取得して秘密鍵をメモリ上に展開し、
-      APIにログインして復号済みの仮想URL（1日券）を隠しフォルダに出力します。
-      通信タイムアウトや一時的なネットワークエラーに対する自動リトライ機能を搭載。
-"""
+# セットアップマニュアル.htmlを参照して使ってください。
 
 import base64
 import datetime
@@ -67,7 +23,6 @@ import os
 import sys
 import time
 import urllib.parse
-from pathlib import Path
 import urllib3
 from urllib3.exceptions import MaxRetryError, TimeoutError
 
@@ -143,34 +98,128 @@ class ClassDefLoginProperty:
 
 def func_p_sd_date(dt_now):
     """システム時刻を API規定書式 "YYYY.MM.DD-hh:mm:ss.sss" の文字列に変換"""
+    # 年.月.日-時:分:秒 の部分を作成
     str_date = dt_now.strftime("%Y.%m.%d-%H:%M:%S")
-    str_ms = f"{dt_now.microsecond:06d}"[:3]
-    return f"{str_date}.{str_ms}"
+    
+    # マイクロ秒（6桁ゼロ埋め）から先頭の3桁を切り出してミリ秒を作成
+    str_micro = f"{dt_now.microsecond:06d}"
+    str_ms = str_micro[0:3]
+    
+    # ドットで結合してAPI規定書式を完成
+    return str_date + "." + str_ms
 
 
 def func_replace_urlencode(str_input):
-    """URLエンコード文字の変換 (Python標準関数による安全なエスケープ)"""
-    # パスワードやIDに含まれる「#」や「+」等の記号を安全にエンコードします
-    return urllib.parse.quote(str_input, safe='')
+    """
+    URLエンコード文字の変換
+    
+    入力文字列から1文字ずつ抽出し、変換対象の記号である場合は
+    対応する「% + 16進数」の文字列へ手動で置き換えて結合します。
+    """
+    str_encode = ''
+    
+    # 入力された文字列から1文字ずつ順番に取り出して判定
+    for i in range(len(str_input)):
+        str_char = str_input[i:i+1]
+
+        if str_char == ' ' :
+            str_replace = '%20'
+        elif str_char == '!' :
+            str_replace = '%21'
+        elif str_char == '"' :
+            str_replace = '%22'
+        elif str_char == '#' :
+            str_replace = '%23'
+        elif str_char == '$' :
+            str_replace = '%24'
+        elif str_char == '%' :
+            str_replace = '%25'
+        elif str_char == '&' :
+            str_replace = '%26'
+        elif str_char == "'" :
+            str_replace = '%27'
+        elif str_char == '(' :
+            str_replace = '%28'
+        elif str_char == ')' :
+            str_replace = '%29'
+        elif str_char == '*' :
+            str_replace = '%2A'
+        elif str_char == '+' :
+            str_replace = '%2B'
+        elif str_char == ',' :
+            str_replace = '%2C'
+        elif str_char == '/' :
+            str_replace = '%2F'
+        elif str_char == ':' :
+            str_replace = '%3A'
+        elif str_char == ';' :
+            str_replace = '%3B'
+        elif str_char == '<' :
+            str_replace = '%3C'
+        elif str_char == '=' :
+            str_replace = '%3D'
+        elif str_char == '>' :
+            str_replace = '%3E'
+        elif str_char == '?' :
+            str_replace = '%3F'
+        elif str_char == '@' :
+            str_replace = '%40'
+        elif str_char == '[' :
+            str_replace = '%5B'
+        elif str_char == ']' :
+            str_replace = '%5D'
+        elif str_char == '^' :
+            str_replace = '%5E'
+        elif str_char == '`' :
+            str_replace = '%60'
+        elif str_char == '{' :
+            str_replace = '%7B'
+        elif str_char == '|' :
+            str_replace = '%7C'
+        elif str_char == '}' :
+            str_replace = '%7D'
+        elif str_char == '~' :
+            str_replace = '%7E'
+        else :
+            # 変換対象外の英数字などはそのまま使用
+            str_replace = str_char
+            
+        # 変換後の文字または元の文字を後ろに結合
+        str_encode = str_encode + str_replace        
+        
+    return str_encode
 
 
 def func_read_from_file(str_fname):
     """ファイルから文字情報を一括読み込み（BOMを自動排除）"""
+    str_read = ''
     try:
-        return Path(str_fname).read_text(encoding='utf-8-sig')
+        # utf-8-sig を指定してBOMを自動的に排除しファイルを開く
+        with open(str_fname, 'r', encoding='utf-8-sig') as fin:
+            while True:
+                line = fin.readline()
+                if not line:
+                    break
+                str_read = str_read + line
+        return str_read
     except IOError as e:
         print(f"[エラー] ファイルを読み込めません: {str_fname}")
         raise e
 
 
 def func_write_to_file(str_fname_output, str_data):
-    """ファイルに書き込み、Linux環境向けに権限を所有者のみ(600)に制限"""
+    """ファイルに書き込み、権限を所有者のみ(600)に制限"""
     try:
-        path_out = Path(str_fname_output)
-        path_out.parent.mkdir(parents=True, exist_ok=True) # ディレクトリがない場合は自動作成
-        path_out.write_text(str_data, encoding='utf-8')
+        # 出力先フォルダの存在を確認し、存在しない場合は自動作成
+        str_dir = os.path.dirname(str_fname_output)
+        if str_dir and not os.path.exists(str_dir):
+            os.makedirs(str_dir, exist_ok=True)
+
+        # データをファイルへ書き込み
+        with open(str_fname_output, 'w', encoding='utf-8') as fout:
+            fout.write(str_data)
         
-        # ファイル権限を600（所有者のみ読み書き）に設定
+        # パーミッションを600（所有者のみ読み書き可能）に制限
         os.chmod(str_fname_output, 0o600)
     except IOError as e:
         print(f"[エラー] ファイルに書き込めません: {str_fname_output}")
@@ -191,7 +240,6 @@ def func_make_url_request_from_dic(auth_flg, url_target, work_dic_req):
     if auth_flg:
         str_url = urllib.parse.urljoin(str_url, 'auth/')
     
-    # パラメータ部分を整形
     json_param = json.dumps(work_dic_req, indent=4, ensure_ascii=False)
     return f"{str_url}?{json_param}"
 
@@ -203,47 +251,44 @@ def func_api_req(str_request_method, str_url):
     print('--- 送信電文 -------------------------------------------')
     print(str_url)
 
-    # urllib3用のタイムアウト制御オブジェクトを生成（接続・読み込みともに設定秒で制限）
+    # 接続および読み込みのタイムアウト時間を設定
     timeout_config = urllib3.Timeout(connect=API_TIMEOUT_SECONDS, read=API_TIMEOUT_SECONDS)
     http = urllib3.PoolManager()
     
     response_data = None
     status_code = None
 
-    # 設定された最大試行回数分、ループで通信をトライ
+    # 最大試行回数に達するまで通信をリトライ
     for attempt in range(1, MAX_RETRY_COUNT + 1):
         try:
-            # 2回目以降のループ（再試行時）は、指定されたインターバル秒だけスリープを入れて待機
+            # 2回目以降の試行（再接続）の前に、指定されたインターバル時間待機
             if attempt > 1:
                 print(f"[{attempt}/{MAX_RETRY_COUNT} 回目] 再接続を試みます...（{RETRY_INTERVAL_SECONDS}秒待機）")
                 time.sleep(RETRY_INTERVAL_SECONDS)
 
-            # リクエスト送信（タイムアウト設定を適用）
             req = http.request(str_request_method, str_url, timeout=timeout_config)
             status_code = req.status
             response_data = req.data
-            break  # 例外が発生せず正常に通信できたらループを抜ける
+            break  # 正常に通信できた場合はループを抜ける
 
         except (TimeoutError, MaxRetryError) as ce:
-            # ネットワーク切断、サーバーハング、DNSエラー等の通信起因の例外をここでキャッチ
             print(f"\n[警告] 通信エラーが発生しました (試行: {attempt}/{MAX_RETRY_COUNT})")
             print(f"エラー詳細: {ce}")
             
-            # 最大回数まで叩いてもダメだった場合は、復旧不可能と判断してカスタムエラーを発生させる
+            # 最大リトライ回数を超えて失敗した場合はConnectionErrorを発生
             if attempt == MAX_RETRY_COUNT:
                 raise ConnectionError(
                     f"APIサーバーへの接続に規定回数失敗しました。サーバーがメンテナンス中か、停止している可能性があります。\n"
                     f"設定されたタイムアウト時間: {API_TIMEOUT_SECONDS}秒"
                 )
         except Exception as ex:
-            # 想定外の致命的な例外が発生した場合は、リトライ上限に達した時点でそのまま上位へレイズ
             print(f"\n[警告] 予期せぬネットワーク例外が発生しました: {ex}")
             if attempt == MAX_RETRY_COUNT:
                 raise ex
 
     print(f"HTTP Status: {status_code}")
 
-    # レスポンスデータをShift-JISからUTF-8文字列へ変換
+    # 受信した電文をShift-JISからUTF-8へデコード（不正なバイトは無視）
     str_response = response_data.decode("shift-jis", errors="ignore")
     print('--- 受信電文 -------------------------------------------')
     print(str_response)
@@ -265,17 +310,15 @@ def func_get_url_info(fname, class_account_property):
 
 def decrypt_sUrl(encoded_encrypted_sUrl, private_key_obj):
     """APIから返された暗号化仮想URLを秘密鍵（RSAオブジェクト）で復号"""
-    # 1. 復号器の準備 (セットアップマニュアル/規定書準拠: OAEPパディング / 内部ハッシュにSHA-256を使用)
+    # 規定書に基づき、OAEPパディングおよび内部ハッシュSHA-256を用いて復号器を初期化
     decryptor = PKCS1_OAEP.new(private_key_obj, hashAlgo=SHA256)
 
-    # 2. Base64デコード処理（JSONパース時に混入する可能性のある前後の引用符や空白をクレンジング）
+    # Base64文字列の前後の引用符や空白をクレンジングしてからデコード
     clean_b64data = encoded_encrypted_sUrl.strip().replace('"', '')
     decoded_b64data = base64.b64decode(clean_b64data)
     
-    # 3. 秘密鍵を用いたRSA復号の実行（バイトデータが返る）
+    # 秘密鍵で復号し、BOM対応を考慮してutf-8-sigでデコード
     decrypted_bytes = decryptor.decrypt(decoded_b64data)
-    
-    # 4. バイト列をUTF-8文字列に変換し、BOMが混入しても除去できるよう utf-8-sig を明示
     return decrypted_bytes.decode("utf-8-sig").strip()
 
 
@@ -283,7 +326,7 @@ def func_login_pki(int_p_no, class_account_property):
     """PKI認証（秘密鍵ログイン）リクエストの組み立てと実行"""
     str_p_sd_date = func_p_sd_date(datetime.datetime.now())
 
-    # リクエスト引数の組み立て
+    # ログインリクエストに必要なパラメータをマッピング
     dic_req_item = {
         "p_no": str(int_p_no),
         "p_sd_date": str_p_sd_date,
@@ -292,11 +335,9 @@ def func_login_pki(int_p_no, class_account_property):
         "sJsonOfmt": class_account_property.sJsonOfmt
     }
     
-    # ログインは常にPOSTメソッドを利用
     str_request_method = 'POST'
     str_url = func_make_url_request_from_dic(True, class_account_property.sUrl, dic_req_item)
 
-    # API送信（内部のタイムアウト・自動リトライ機能を経由して電文を送信）
     str_api_response = func_api_req(str_request_method, str_url)
     return json.loads(str_api_response)
 
@@ -307,37 +348,35 @@ def func_login(auth_id, private_key_obj):
     """ログインシーケンス全体の制御と応答の復号化保存"""
     my_account_property = ClassDefAccountProperty()
 
-    # 1. 接続先情報の読み込みとIDの設定
+    # 接続情報の読み込みと認証用IDの設定
     func_get_url_info(FNAME_URL_INFO, my_account_property)
     my_account_property.sAuthId = func_replace_urlencode(auth_id)
 
-    # 2. p_noの初期化とファイル保存（ログイン時は 1 固定）
+    # p_noの初期化とファイル保存（ログイン時は 1 固定）
     my_login_property = ClassDefLoginProperty()
     func_save_p_no(FNAME_INFO_P_NO, my_login_property.p_no)
     
     print('\n== 立花証券API ログイン処理開始 ========================')
     dic_return = func_login_pki(my_login_property.p_no, my_account_property)
     
-    # 3. ログインエラー判定
+    # 応答結果のステータスコードを判定
     int_p_errno = int(dic_return.get('p_errno', -1))
     int_sResultCode = int(dic_return.get('sResultCode', -1))
     
     if int_p_errno == 0 and int_sResultCode == 0:
-        # 4. 書面未読チェック
         url_request_raw = dic_return.get('sUrlRequest', '')
         if len(url_request_raw) > 0:
             print('-> ログイン成功。公開鍵暗号化された仮想URLの復号を行います...')
             
-            # 各機能の仮想URL（暗号化された状態の1日券）を秘密鍵で1つずつ復号して置換
+            # 各機能の暗号化された仮想URLを秘密鍵で1つずつ復号
             target_url_keys = ['sUrlRequest', 'sUrlMaster', 'sUrlPrice', 'sUrlEvent', 'sUrlEventWebSocket']
             for key in target_url_keys:
                 if dic_return.get(key):
                     dic_return[key] = decrypt_sUrl(dic_return[key], private_key_obj)
             
-            # ファイル保存用に綺麗なJSON文字列へ変換
             json_data = json.dumps(dic_return, indent=4, ensure_ascii=False)
             
-            # 復号済みログインレスポンスの書き込み保存
+            # 復号済みの応答内容を隠しディレクトリへ保存
             func_write_to_file(FNAME_LOGIN_RESPONSE, json_data)
             print(f'【成功】復号したログインレスポンスを保存しました: {FNAME_LOGIN_RESPONSE}')
             print('========================================================')
@@ -345,10 +384,12 @@ def func_login(auth_id, private_key_obj):
             print(f"APIリリース予定日  (sUpdateInformAPISpecFunction): {dic_return.get('sUpdateInformAPISpecFunction')}")
             print('========================================================')
         else:
+            # 契約締結前書面が未読状態の場合は処理を中断
             print('\n[警告] 契約締結前書面が未読状態です。')
             print('APIは利用できません。ブラウザから標準Web画面を開き、書面を確認してください。')
             sys.exit(1)
     else:
+        # ログインエラー発生時の情報を出力
         print('\n[エラー] ログインに失敗しました。')
         print(f"p_errno: {dic_return.get('p_errno')} ({dic_return.get('p_err')})")
         print(f"sResultCode: {dic_return.get('sResultCode')} ({dic_return.get('sResultText')})")
@@ -356,8 +397,8 @@ def func_login(auth_id, private_key_obj):
 
 
 def load_api_credentials():
-    """環境変数および暗号化ファイルから認証に必要な情報をメモリ上に安全展開"""
-    # 1. systemd等から注入された環境変数の取得
+    """環境変数および暗号化ファイルから認証に必要な情報をメモリ上に展開"""
+    # 環境変数から暗号化用共通鍵を取得
     fernet_key_str = os.environ.get("API_DECRYPT_KEY")
     if not fernet_key_str:
         raise RuntimeError(
@@ -365,50 +406,48 @@ def load_api_credentials():
             "「セットアップマニュアル.html」の手順に沿って環境変数が正しくセットされているか確認してください。"
         )
     
-    # 2. セキュア暗号化ファイルのロード
-    config_path = Path(CONFIG_FILE)
-    if not config_path.exists():
-        raise FileNotFoundError(f"暗号化設定ファイルが見つかりません: {config_path.resolve()}")
+    if not os.path.exists(CONFIG_FILE):
+        raise FileNotFoundError(f"暗号化設定ファイルが見つかりません: {CONFIG_FILE}")
     
-    # 3. 暗号化された設定ファイルの内容をバイナリとして一括読み込み
-    encrypted_bytes = config_path.read_bytes()
+    # 暗号化設定ファイルをバイナリモードで一括ロード
+    with open(CONFIG_FILE, 'rb') as f_in:
+        encrypted_bytes = f_in.read()
 
-    # 4. 共通鍵（Fernet）デクリプタを初期化し、バイナリを復号
+    # 共通鍵を用いて暗号化設定ファイルを復号
     cipher = Fernet(fernet_key_str.encode())
     decrypted_bytes = cipher.decrypt(encrypted_bytes)
     
-    # 5. 復号されたプレーンな文字列（JSON）をディクショナリにデコード
+    # 復号されたJSON文字列からアカウント設定をパース
     config = json.loads(decrypted_bytes.decode('utf-8'))
     auth_id = config["auth_id"]
     
-    # 6. JSON内に格納されていたPEM形式のテキストから、RSA秘密鍵オブジェクトをメモリ上にロード
+    # 格納されているPEMテキストから秘密鍵オブジェクトをメモリ上にロード
     private_key_obj = RSA.import_key(config["private_key"])
     
-    # 呼び出し元へ「認証ID」と「秘密鍵オブジェクト」を返す
     return auth_id, private_key_obj
 
 
 def main():
-    """プログラムのエントリポイント（通信エラーのキャッチ強化構造）"""
+    """プログラムのエントリポイント"""
     try:
-        # メモリ上へのセキュア展開（環境変数チェックとファイルの復号化ロード）
+        # メモリ上へのセキュア展開を実行
         my_auth_id, my_private_key = load_api_credentials()
         print("【セキュリティ認証】秘密鍵のメモリ展開に成功しました。")
         
-        # ログインメイン処理の実行
+        # ログインメインシーケンスの実行
         func_login(my_auth_id, my_private_key)
         
         print(f"利用中のAuthID: {my_auth_id}")
         print("API自動ログイン処理がすべて正常に完了しました。")
         
     except ConnectionError as ce:
-        # func_api_req 内で規定回数リトライをオーバーした通信エラーをきれいにトラップ
+        # 規定回数リトライをオーバーした通信例外をトラップしてメッセージを表示
         print(f"\n【通信エラーを検知しました】\n{ce}", file=sys.stderr)
         print("時間を置いて再起動するか、サーバーの稼働スケジュールを確認してください。", file=sys.stderr)
         sys.exit(1)
         
     except Exception as e:
-        # 通信以外のバグやファイルIO例外など、その他の予期せぬ実行エラーをまとめて捕捉
+        # その他の実行時例外をまとめて捕捉
         print(f"\n【実行エラー】API自動ログイン処理の実行に失敗しました: {e}", file=sys.stderr)
         sys.exit(1)
 
