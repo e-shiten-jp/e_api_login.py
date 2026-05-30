@@ -147,7 +147,7 @@
 ├── .venv/                   ← Python仮想環境（自動生成されます）
 ├── e_api_encode_pkcs12.py   ← 暗号化ユーティリティ
 ├── e_api_login_pkcs12.py    ← ログイン実行スクリプト
-└── e_api_account_info.txt   ← 口座情報設定ファイル（手動作成）</code></pre>
+└── e_api_url_info.txt   ← 口座情報設定ファイル（手動作成）</code></pre>
 
     <h3>設定コマンド</h3>
     <p>ターミナルを開き、以下のコマンドを順番に実行してディレクトリを作成・保護してください。</p>
@@ -203,11 +203,10 @@ pip list</code></pre>
     </ul>
 
     <h3>[3] 口座情報ファイル（手動作成）</h3>
-    <p>接続先や暗証番号を記録するファイルを <code>~/e_api/e_api_account_info.txt</code> として新規作成します。</p>
-<pre><code>nano ~/e_api/e_api_account_info.txt</code></pre>
+    <p>接続先や暗証番号を記録するファイルを <code>~/e_api/e_api_url_info.txt</code> として新規作成します。エディターとしてnanoを使っていますが、ご自身の慣れたエディターをお使いください。</p>
+<pre><code>nano ~/e_api/e_api_url_info.txt</code></pre>
     <p>環境（本番/デモ）に合わせて以下の内容を記述し、保存してください。</p>
 <pre><code>{
-    "sSecondPassword": "あなたの第2暗証番号",
     "sUrl": "https://demo-kabuka.e-shiten.jp/e_api_v4r9/",
     "sJsonOfmt": "5"
 }</code></pre>
@@ -215,7 +214,7 @@ pip list</code></pre>
     <h3>[4] 配置ファイルの権限変更</h3>
     <p>万が一に備え、配下のファイルも所有者のみ読み書き可能（600）に制限します。</p>
 <pre><code>chmod 600 ~/e_api/.pki/*
-chmod 600 ~/e_api/e_api_account_info.txt
+chmod 600 ~/e_api/e_api_url_info.txt
 chmod 600 ~/e_api/*.py</code></pre>
 
     <hr>
@@ -268,4 +267,43 @@ rm ~/e_api/.pki/e_api_private_key.der</code></pre>
     <p>以下の項目を、お客様の環境に合わせて修正してください。</p>
     <ul>
         <li><code>User=</code> : 実行するLinuxのユーザー名（例: <code>username</code>）</li>
-        <li><code>WorkingDirectory=</code> : ディレクトリのフルパス（例: <code>/
+        <li><code>WorkingDirectory=</code> : ディレクトリのフルパス（例: <code>/home/username/e_api/</code>）</li>
+        <li><code>Environment=</code> : <strong>手順4の[2]でメモした <code>API_DECRYPT_KEY</code> の値を貼り付けます。</strong></li>
+        <li><code>ExecStart=</code> : 仮想環境内のPythonパスと実行スクリプトのフルパス</li>
+    </ul>
+
+    <p><strong>【設定例】</strong></p>
+<pre><code>[Unit]
+Description=My Python Crypto API Service
+After=network.target
+
+[Service]
+Type=oneshot
+User=username
+WorkingDirectory=/home/username/e_api/
+
+# 手順4で生成されたキーをここに設定
+Environment="API_DECRYPT_KEY=gAAAAABm...（あなたのキー）..."
+
+# 必ず仮想環境(.venv)下のpython3を指定してください
+ExecStart=/home/username/e_api/.venv/bin/python3 /home/username/e_api/e_api_login_pkcs12.py
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+    <h3>[3] systemdの設定反映とテスト実行</h3>
+    <p>設定ファイルを保存したら、システムに反映させてテスト実行を行います。</p>
+<pre><code># 1. systemd 設定のリロード
+sudo systemctl daemon-reload
+
+# 2. サービスの手動テスト起動
+sudo systemctl start e_api_login.service
+
+# 3. 実行ログ・ステータスの確認
+sudo systemctl status e_api_login.service</code></pre>
+
+    <p>ログにエラーが出ておらず、<code>~/e_api/e_api_login_response.txt</code> が正しく生成・復号されていれば、すべてのセットアップは完了です。</p>
+</div>
+
+</body>
+</html>
