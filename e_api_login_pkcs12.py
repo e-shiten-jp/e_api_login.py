@@ -1,4 +1,4 @@
- -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # Copyright (c) 2021 Tachibana Securities Co., Ltd. All rights reserved.
 
 # 2021.06.24,   yo.
